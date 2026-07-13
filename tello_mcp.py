@@ -28,6 +28,48 @@ TELLO_CMD_PORT = 8889
 TELLO_STATE_PORT = 8890
 TIMEOUT = 10.0  # seconds
 
+# Hard allowlists for UDP commands — fail closed (campaign aerial safety).
+ALLOWED_MOVE_DIRECTIONS = frozenset({"up", "down", "left", "right", "forward", "back"})
+ALLOWED_ROTATE_DIRECTIONS = frozenset({"cw", "ccw"})
+ALLOWED_COMMAND_TOKENS = frozenset(
+    {"command", "takeoff", "land"} | ALLOWED_MOVE_DIRECTIONS | ALLOWED_ROTATE_DIRECTIONS
+)
+
+
+def validate_move_arguments(arguments: dict) -> tuple[str, int]:
+    """Validate move tool args; raise ValueError on invalid input."""
+    if not isinstance(arguments, dict):
+        raise ValueError("Arguments must be a JSON object (dict)")
+    direction = arguments.get("direction")
+    distance = arguments.get("distance")
+    if direction is None or distance is None:
+        raise ValueError("Missing direction or distance for move")
+    if not isinstance(direction, str) or direction not in ALLOWED_MOVE_DIRECTIONS:
+        raise ValueError(
+            f"direction must be one of {sorted(ALLOWED_MOVE_DIRECTIONS)}"
+        )
+    if not isinstance(distance, int) or isinstance(distance, bool) or not (20 <= distance <= 500):
+        raise ValueError("Distance must be an integer between 20 and 500")
+    return direction, distance
+
+
+def validate_rotate_arguments(arguments: dict) -> tuple[str, int]:
+    """Validate rotate tool args; raise ValueError on invalid input."""
+    if not isinstance(arguments, dict):
+        raise ValueError("Arguments must be a JSON object (dict)")
+    direction = arguments.get("direction")
+    degrees = arguments.get("degrees")
+    if direction is None or degrees is None:
+        raise ValueError("Missing direction or degrees for rotate")
+    if not isinstance(direction, str) or direction not in ALLOWED_ROTATE_DIRECTIONS:
+        raise ValueError(
+            f"direction must be one of {sorted(ALLOWED_ROTATE_DIRECTIONS)}"
+        )
+    if not isinstance(degrees, int) or isinstance(degrees, bool) or not (1 <= degrees <= 3600):
+        raise ValueError("Degrees must be an integer between 1 and 3600")
+    return direction, degrees
+
+
 # Tello drone communication class
 class Tello:
     """Handles communication with the Tello drone."""
@@ -76,6 +118,12 @@ class Tello:
 
     async def send_command(self, command: str) -> str:
         logger.info(f"Sending command: {command} to {self.tello_address}")
+        if not isinstance(command, str) or not command.strip():
+            raise ValueError("command must be a non-empty string")
+        token = command.strip().split()[0]
+        if token not in ALLOWED_COMMAND_TOKENS:
+            logger.error(f"Refusing non-allowlisted Tello command token: {token!r}")
+            raise ValueError(f"Command token not allowlisted: {token}")
 
         def blocking_io():
             # This function contains the blocking socket operations
@@ -194,22 +242,10 @@ class MCPTelloServer:
                 elif name == "land":
                     response_output = await drone.send_command("land")
                 elif name == "move":
-                    direction = arguments.get("direction")
-                    distance = arguments.get("distance")
-                    if not direction or distance is None: # Check distance too
-                        raise ValueError("Missing direction or distance for move")
-                    # Add type/range check for distance
-                    if not isinstance(distance, int) or not (20 <= distance <= 500):
-                         raise ValueError("Distance must be an integer between 20 and 500")
+                    direction, distance = validate_move_arguments(arguments)
                     response_output = await drone.send_command(f"{direction} {distance}")
                 elif name == "rotate":
-                    direction = arguments.get("direction")
-                    degrees = arguments.get("degrees")
-                    if not direction or degrees is None: # Check degrees too
-                         raise ValueError("Missing direction or degrees for rotate")
-                    # Add type/range check for degrees
-                    if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
-                         raise ValueError("Degrees must be an integer between 1 and 3600")
+                    direction, degrees = validate_rotate_arguments(arguments)
                     response_output = await drone.send_command(f"{direction} {degrees}")
                 else:
                     # MCP Server should raise error for unknown tool

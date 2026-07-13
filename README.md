@@ -210,6 +210,7 @@ The server logs to stderr with detailed information about:
 
 ## Security Considerations
 
+- Move/rotate tool parameters are validated against fixed allowlists before any UDP is sent
 - The server requires root/sudo access to bind to UDP ports
 - No authentication is implemented (rely on network security)
 - CORS is enabled for all origins (*)
