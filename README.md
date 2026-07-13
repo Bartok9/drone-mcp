@@ -208,6 +208,20 @@ The server logs to stderr with detailed information about:
 - Client connections
 - Error conditions
 
+
+## Offline / CI mode (no hardware)
+
+Set environment variable `TELLO_MCP_OFFLINE=1` (or `true` / `yes` / `on`) to start the Starlette MCP server **without** connecting to a Tello.
+
+- **Default (unset offline):** still requires a live drone and exits on connection failure (unchanged safety posture).
+- **Offline:** `list_tools` works for client inspection; **flight tools always fail closed** with `RuntimeError` — they never return a fake successful takeoff/land.
+
+```bash
+TELLO_MCP_OFFLINE=1 python tello_mcp.py
+```
+
+Unit smoke: `python3 -m unittest discover -s tests -v`
+
 ## Security Considerations
 
 - The server requires root/sudo access to bind to UDP ports

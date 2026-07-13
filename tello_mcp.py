@@ -1,4 +1,5 @@
 import asyncio
+import os
 import socket
 import sys
 import logging
@@ -110,6 +111,15 @@ class Tello:
 
 # Global drone instance (initialized later in main)
 drone: Optional[Tello] = None
+# When True, server can start without a physical Tello; flight tools refuse execution.
+offline_mode: bool = False
+
+
+def is_offline_mode() -> bool:
+    """True if TELLO_MCP_OFFLINE is a truthy env value (1/true/yes/on)."""
+    val = os.environ.get("TELLO_MCP_OFFLINE", "").strip().lower()
+    return val in {"1", "true", "yes", "on"}
+
 
 
 
@@ -176,9 +186,13 @@ class MCPTelloServer:
             global drone 
             logger.info(f"call_tool called for '{name}' with args: {arguments}")
 
-            if not drone:
-                logger.error(f"Drone not available for tool call: {name}")
+            if offline_mode or not drone:
+                logger.error(f"Drone not available for tool call: {name} (offline={offline_mode})")
                 # MCP library expects raising exceptions for errors
+                if offline_mode:
+                    raise RuntimeError(
+                        "offline mode: flight commands disabled (TELLO_MCP_OFFLINE)"
+                    )
                 raise RuntimeError("Drone connection not established")
 
             # Validate arguments (basic)
@@ -287,12 +301,19 @@ def create_starlette_app(tello_mcp_server: MCPTelloServer):
 # --- Main Execution ---
 if __name__ == "__main__":
     # Ensure global drone is None initially
-    drone = None 
+    drone = None
+    offline_mode = is_offline_mode()
     try:
-        # Initialize Tello drone first - exits if it fails
-        logger.info("Initializing Tello drone...")
-        drone = Tello() 
-        logger.info("Tello drone initialized successfully.")
+        if offline_mode:
+            logger.warning(
+                "TELLO_MCP_OFFLINE set: starting without Tello hardware. "
+                "list_tools works; call_tool flight commands raise RuntimeError."
+            )
+        else:
+            # Initialize Tello drone first - exits if it fails
+            logger.info("Initializing Tello drone...")
+            drone = Tello()
+            logger.info("Tello drone initialized successfully.")
 
         # Create the MCP Server instance
         tello_mcp_server = MCPTelloServer()
