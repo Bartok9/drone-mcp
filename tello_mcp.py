@@ -1,8 +1,9 @@
 import asyncio
+import os
 import socket
 import sys
 import logging
-from typing import Optional, Any, Sequence
+from typing import Optional, Any, Sequence, Tuple
 import uvicorn
 import json
 
@@ -22,11 +23,53 @@ logging.basicConfig(level=logging.INFO, stream=sys.stderr, format='%(asctime)s -
 # Change logger name slightly to differentiate
 logger = logging.getLogger("tello_mcp_server_lib") 
 
-# Tello drone configuration
-TELLO_IP = '192.168.10.1'
-TELLO_CMD_PORT = 8889
+# Tello drone configuration (defaults; override via TELLO_IP / TELLO_CMD_PORT)
+DEFAULT_TELLO_IP = '192.168.10.1'
+DEFAULT_TELLO_CMD_PORT = 8889
 TELLO_STATE_PORT = 8890
 TIMEOUT = 10.0  # seconds
+
+
+def load_tello_endpoint(
+    ip: Optional[str] = None,
+    port: Optional[Any] = None,
+) -> Tuple[str, int]:
+    """Resolve Tello UDP endpoint from args or environment.
+
+    Env: TELLO_IP (default 192.168.10.1), TELLO_CMD_PORT (default 8889).
+    Fails closed on empty IP or non-int / out-of-range port (1-65535).
+    """
+    raw_ip = DEFAULT_TELLO_IP if ip is None else ip
+    if ip is None:
+        env_ip = os.environ.get("TELLO_IP")
+        if env_ip is not None:
+            raw_ip = env_ip
+    host = (raw_ip or "").strip()
+    if not host:
+        raise ValueError("TELLO_IP must be a non-empty host/IP")
+
+    if port is None:
+        env_port = os.environ.get("TELLO_CMD_PORT")
+        raw_port: Any = DEFAULT_TELLO_CMD_PORT if env_port is None or str(env_port).strip() == "" else env_port
+    else:
+        raw_port = port
+
+    if isinstance(raw_port, bool) or not isinstance(raw_port, (int, str)):
+        raise ValueError("TELLO_CMD_PORT must be an integer 1-65535")
+    if isinstance(raw_port, str):
+        s = raw_port.strip()
+        if not s or not s.isdigit():
+            raise ValueError("TELLO_CMD_PORT must be an integer 1-65535")
+        port_i = int(s)
+    else:
+        port_i = int(raw_port)
+    if not (1 <= port_i <= 65535):
+        raise ValueError("TELLO_CMD_PORT must be an integer 1-65535")
+    return host, port_i
+
+
+# Resolved once at import for backward-compatible module names
+TELLO_IP, TELLO_CMD_PORT = load_tello_endpoint()
 
 # Tello drone communication class
 class Tello:
@@ -34,7 +77,8 @@ class Tello:
     def __init__(self, local_ip='0.0.0.0', local_port=8889):
         self.local_ip = local_ip
         self.local_port = local_port
-        self.tello_address = (TELLO_IP, TELLO_CMD_PORT)
+        # Re-resolve so late env changes (tests) and instance path stay consistent
+        self.tello_address = load_tello_endpoint()
         self.response = None
         self.state = None
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

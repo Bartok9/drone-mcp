@@ -17,6 +17,17 @@ A Model Context Protocol (MCP) server implementation for controlling the DJI Tel
   - Move (up/down/left/right/forward/back)
   - Rotate (clockwise/counter-clockwise)
 
+## Environment variables
+
+Optional overrides for the Tello UDP command endpoint (still defaults to the stock Wi‑Fi AP):
+
+| Variable | Default | Notes |
+|----------|---------|--------|
+| `TELLO_IP` | `192.168.10.1` | Command destination host/IP |
+| `TELLO_CMD_PORT` | `8889` | Command port (`1`–`65535`) |
+
+Empty or invalid values fail closed at startup / resolve time (no silent fallback to a bad port).
+
 ## Prerequisites
 
 - Python 3.7+
