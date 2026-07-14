@@ -28,6 +28,16 @@ TELLO_CMD_PORT = 8889
 TELLO_STATE_PORT = 8890
 TIMEOUT = 10.0  # seconds
 
+
+def assert_strict_int(name: str, value: Any, lo: int, hi: int) -> int:
+    """Require a real int (not bool/float/str) in [lo, hi] inclusive."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} must be an integer between {lo} and {hi}")
+    if not (lo <= value <= hi):
+        raise ValueError(f"{name} must be an integer between {lo} and {hi}")
+    return value
+
+
 # Tello drone communication class
 class Tello:
     """Handles communication with the Tello drone."""
@@ -198,18 +208,14 @@ class MCPTelloServer:
                     distance = arguments.get("distance")
                     if not direction or distance is None: # Check distance too
                         raise ValueError("Missing direction or distance for move")
-                    # Add type/range check for distance
-                    if not isinstance(distance, int) or not (20 <= distance <= 500):
-                         raise ValueError("Distance must be an integer between 20 and 500")
+                    distance = assert_strict_int("Distance", distance, 20, 500)
                     response_output = await drone.send_command(f"{direction} {distance}")
                 elif name == "rotate":
                     direction = arguments.get("direction")
                     degrees = arguments.get("degrees")
                     if not direction or degrees is None: # Check degrees too
                          raise ValueError("Missing direction or degrees for rotate")
-                    # Add type/range check for degrees
-                    if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
-                         raise ValueError("Degrees must be an integer between 1 and 3600")
+                    degrees = assert_strict_int("Degrees", degrees, 1, 3600)
                     response_output = await drone.send_command(f"{direction} {degrees}")
                 else:
                     # MCP Server should raise error for unknown tool
