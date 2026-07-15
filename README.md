@@ -51,6 +51,13 @@ To enable your MCP client to connect to the Tello drone server, add the followin
 
 This configuration allows MCP-enabled tools and models to automatically discover and connect to your Tello drone server.
 
+## Environment
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MCP_HOST` | `0.0.0.0` | HTTP bind host for the Starlette/uvicorn MCP server |
+| `MCP_PORT` | `3000` | HTTP bind port (`1`–`65535`) |
+
 ## Usage
 
 1. Connect to your Tello drone's WiFi network (usually starts with "TELLO-").

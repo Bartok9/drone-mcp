@@ -284,6 +284,39 @@ def create_starlette_app(tello_mcp_server: MCPTelloServer):
     return Starlette(routes=routes, middleware=middleware)
 
 
+def load_mcp_http_bind() -> tuple:
+    """Resolve MCP HTTP bind host/port from MCP_HOST / MCP_PORT or defaults."""
+    import os
+
+    host_raw = os.environ.get("MCP_HOST")
+    if host_raw is None:
+        host = "0.0.0.0"
+    else:
+        host = str(host_raw).strip()
+        if not host:
+            raise ValueError("MCP_HOST must be a non-empty host string")
+
+    port_raw = os.environ.get("MCP_PORT")
+    if port_raw is None or str(port_raw).strip() == "":
+        port = 3000
+    else:
+        s = str(port_raw).strip()
+        # reject bool-like and non-int (no float ports)
+        if s.lower() in ("true", "false") or "." in s or "e" in s.lower():
+            raise ValueError(f"MCP_PORT must be an integer between 1 and 65535 (got {port_raw!r})")
+        try:
+            port = int(s)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"MCP_PORT must be an integer between 1 and 65535 (got {port_raw!r})"
+            ) from e
+        if isinstance(port, bool) or not (1 <= port <= 65535):
+            raise ValueError(
+                f"MCP_PORT must be an integer between 1 and 65535 (got {port!r})"
+            )
+    return host, port
+
+
 # --- Main Execution ---
 if __name__ == "__main__":
     # Ensure global drone is None initially
@@ -301,8 +334,9 @@ if __name__ == "__main__":
         starlette_app = create_starlette_app(tello_mcp_server)
         
         # Run the Starlette app with uvicorn
-        logger.info("Starting Starlette MCP server with uvicorn on 0.0.0.0:3000...")
-        uvicorn.run(starlette_app, host="0.0.0.0", port=3000)
+        mcp_host, mcp_port = load_mcp_http_bind()
+        logger.info(f"Starting Starlette MCP server with uvicorn on {mcp_host}:{mcp_port}...")
+        uvicorn.run(starlette_app, host=mcp_host, port=mcp_port)
         
     except ConnectionError as e:
         # If Tello init fails, log critical error and exit.
