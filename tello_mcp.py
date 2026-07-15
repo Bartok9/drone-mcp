@@ -26,7 +26,31 @@ logger = logging.getLogger("tello_mcp_server_lib")
 TELLO_IP = '192.168.10.1'
 TELLO_CMD_PORT = 8889
 TELLO_STATE_PORT = 8890
-TIMEOUT = 10.0  # seconds
+TIMEOUT = 10.0  # seconds (default; runtime uses load_socket_timeout())
+
+
+def load_socket_timeout() -> float:
+    """Resolve UDP socket timeout seconds from TELLO_SOCKET_TIMEOUT or default."""
+    import math
+    import os
+
+    raw = os.environ.get("TELLO_SOCKET_TIMEOUT")
+    if raw is None or str(raw).strip() == "":
+        return float(TIMEOUT)
+    try:
+        value = float(str(raw).strip())
+    except (TypeError, ValueError) as e:
+        raise ValueError(
+            "TELLO_SOCKET_TIMEOUT must be a positive number of seconds "
+            f"between 0.1 and 120 (got {raw!r})"
+        ) from e
+    if not math.isfinite(value) or value < 0.1 or value > 120.0:
+        raise ValueError(
+            "TELLO_SOCKET_TIMEOUT must be a finite number of seconds "
+            f"between 0.1 and 120 (got {value!r})"
+        )
+    return value
+
 
 # Tello drone communication class
 class Tello:
@@ -38,6 +62,7 @@ class Tello:
         self.response = None
         self.state = None
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket_timeout = load_socket_timeout()
 
         logger.info(f"Binding UDP socket to {self.local_ip}:{self.local_port}")
         try:
@@ -46,7 +71,7 @@ class Tello:
             logger.error(f"Failed to bind socket to {self.local_ip}:{self.local_port}. Error: {e}")
             raise ConnectionError(f"Socket bind error: {e}")
 
-        self.sock.settimeout(TIMEOUT)
+        self.sock.settimeout(self.socket_timeout)
 
         logger.info(f"Sending initial command: command to {self.tello_address}")
         try:

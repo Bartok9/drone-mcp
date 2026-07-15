@@ -51,6 +51,12 @@ To enable your MCP client to connect to the Tello drone server, add the followin
 
 This configuration allows MCP-enabled tools and models to automatically discover and connect to your Tello drone server.
 
+## Environment
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TELLO_SOCKET_TIMEOUT` | `10` | UDP socket timeout in seconds for Tello command responses (`0.1`–`120`) |
+
 ## Usage
 
 1. Connect to your Tello drone's WiFi network (usually starts with "TELLO-").
