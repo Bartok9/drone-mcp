@@ -44,6 +44,10 @@ class Tello:
             self.sock.bind((self.local_ip, self.local_port))
         except OSError as e:
             logger.error(f"Failed to bind socket to {self.local_ip}:{self.local_port}. Error: {e}")
+            try:
+                self.sock.close()
+            except OSError:
+                pass
             raise ConnectionError(f"Socket bind error: {e}")
 
         self.sock.settimeout(TIMEOUT)
@@ -69,9 +73,24 @@ class Tello:
                  
         except socket.timeout:
             logger.error("Initial command timed out.")
+            try:
+                self.sock.close()
+            except OSError:
+                pass
             raise ConnectionError("Failed to get response from Tello (timeout).")
+        except ConnectionError:
+            # Protocol / decode / non-ok (ConnectionError is OSError subclass) after bind
+            try:
+                self.sock.close()
+            except OSError:
+                pass
+            raise
         except OSError as e:
             logger.error(f"Network error sending initial command: {e}")
+            try:
+                self.sock.close()
+            except OSError:
+                pass
             raise ConnectionError(f"Network error initializing Tello: {e}")
 
     async def send_command(self, command: str) -> str:
