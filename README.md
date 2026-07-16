@@ -96,7 +96,18 @@ The server provides the following MCP tools:
 }
 ```
 
-### 3. Move
+### 3. Get Battery
+```json
+{
+    "name": "get_battery",
+    "description": "Reads the Tello battery level percentage (read-only; no flight motion)",
+    "inputSchema": {"type": "object", "properties": {}}
+}
+```
+
+Returns the drone's battery response string (typically a percentage number as text).
+
+### 4. Move
 ```json
 {
     "name": "move",
@@ -119,7 +130,7 @@ The server provides the following MCP tools:
 }
 ```
 
-### 4. Rotate
+### 5. Rotate
 ```json
 {
     "name": "rotate",

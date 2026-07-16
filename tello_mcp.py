@@ -28,6 +28,12 @@ TELLO_CMD_PORT = 8889
 TELLO_STATE_PORT = 8890
 TIMEOUT = 10.0  # seconds
 
+
+def battery_query_command() -> str:
+    """Tello SDK read-only battery query string (no flight motion)."""
+    return "battery?"
+
+
 # Tello drone communication class
 class Tello:
     """Handles communication with the Tello drone."""
@@ -142,6 +148,11 @@ class MCPTelloServer:
                     inputSchema={"type": "object", "properties": {}}
                 ),
                 Tool(
+                    name="get_battery",
+                    description="Reads the Tello battery level percentage (read-only; no flight motion)",
+                    inputSchema={"type": "object", "properties": {}}
+                ),
+                Tool(
                     name="move",
                     description="Moves the Tello drone in a specified direction",
                     inputSchema={
@@ -193,6 +204,9 @@ class MCPTelloServer:
                     response_output = await drone.send_command("takeoff")
                 elif name == "land":
                     response_output = await drone.send_command("land")
+                elif name == "get_battery":
+                    # Read-only Tello SDK query — does not move the craft
+                    response_output = await drone.send_command("battery?")
                 elif name == "move":
                     direction = arguments.get("direction")
                     distance = arguments.get("distance")
