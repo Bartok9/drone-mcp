@@ -87,6 +87,10 @@ class Tello:
                 # Attempt to decode, ignore errors for general responses for now
                 decoded_response = response_bytes.decode('utf-8', errors='ignore').strip()
                 logger.debug(f"Decoded response: {decoded_response}")
+                # Fail closed: empty UDP payload must not look like success to MCP call_tool
+                if not decoded_response:
+                    logger.error("Empty response from Tello for command")
+                    return "error: empty response"
                 return decoded_response
             except socket.timeout:
                  logger.warning(f"Timeout waiting for response to command: {command}")
