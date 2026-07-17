@@ -142,6 +142,11 @@ class MCPTelloServer:
                     inputSchema={"type": "object", "properties": {}}
                 ),
                 Tool(
+                    name="stop",
+                    description="Commands the Tello drone to hover in place (SDK stop; interrupts motion)",
+                    inputSchema={"type": "object", "properties": {}}
+                ),
+                Tool(
                     name="move",
                     description="Moves the Tello drone in a specified direction",
                     inputSchema={
@@ -193,6 +198,8 @@ class MCPTelloServer:
                     response_output = await drone.send_command("takeoff")
                 elif name == "land":
                     response_output = await drone.send_command("land")
+                elif name == "stop":
+                    response_output = await drone.send_command("stop")
                 elif name == "move":
                     direction = arguments.get("direction")
                     distance = arguments.get("distance")
