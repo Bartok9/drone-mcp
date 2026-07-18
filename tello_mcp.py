@@ -164,6 +164,17 @@ class MCPTelloServer:
                         },
                         "required": ["direction", "degrees"]
                     }
+                ),
+                Tool(
+                    name="set_speed",
+                    description="Sets Tello ground speed in cm/s via SDK speed command (integer 10-100)",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "speed": {"type": "integer", "minimum": 10, "maximum": 100}
+                        },
+                        "required": ["speed"]
+                    }
                 )
             ]
             logger.info(f"Returning {len(tools)} tools.")
@@ -211,6 +222,16 @@ class MCPTelloServer:
                     if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
                          raise ValueError("Degrees must be an integer between 1 and 3600")
                     response_output = await drone.send_command(f"{direction} {degrees}")
+                elif name == "set_speed":
+                    speed = arguments.get("speed")
+                    if speed is None:
+                        raise ValueError("Missing speed for set_speed")
+                    # Reject bool (isinstance(True, int) is True) and non-int
+                    if isinstance(speed, bool) or not isinstance(speed, int):
+                        raise ValueError("Speed must be an integer between 10 and 100")
+                    if not (10 <= speed <= 100):
+                        raise ValueError("Speed must be an integer between 10 and 100")
+                    response_output = await drone.send_command(f"speed {speed}")
                 else:
                     # MCP Server should raise error for unknown tool
                     logger.error(f"Unknown tool requested in call_tool: {name}")
