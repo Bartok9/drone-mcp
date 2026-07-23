@@ -164,6 +164,11 @@ class MCPTelloServer:
                         },
                         "required": ["direction", "degrees"]
                     }
+                ),
+                Tool(
+                    name="get_sdk",
+                    description="Queries Tello SDK version string (SDK sdk?)",
+                    inputSchema={"type": "object", "properties": {}}
                 )
             ]
             logger.info(f"Returning {len(tools)} tools.")
@@ -211,6 +216,8 @@ class MCPTelloServer:
                     if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
                          raise ValueError("Degrees must be an integer between 1 and 3600")
                     response_output = await drone.send_command(f"{direction} {degrees}")
+                elif name == "get_sdk":
+                    response_output = await drone.send_command("sdk?")
                 else:
                     # MCP Server should raise error for unknown tool
                     logger.error(f"Unknown tool requested in call_tool: {name}")
