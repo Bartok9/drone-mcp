@@ -164,6 +164,21 @@ class MCPTelloServer:
                         },
                         "required": ["direction", "degrees"]
                     }
+                ),
+                Tool(
+                    name="flip",
+                    description="Flips the Tello in an allowed direction (SDK flip l|r|f|b)",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "direction": {
+                                "type": "string",
+                                "enum": ["l", "r", "f", "b"],
+                                "description": "Flip direction: l=left, r=right, f=forward, b=back"
+                            }
+                        },
+                        "required": ["direction"]
+                    }
                 )
             ]
             logger.info(f"Returning {len(tools)} tools.")
@@ -211,6 +226,14 @@ class MCPTelloServer:
                     if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
                          raise ValueError("Degrees must be an integer between 1 and 3600")
                     response_output = await drone.send_command(f"{direction} {degrees}")
+                elif name == "flip":
+                    direction = arguments.get("direction")
+                    allowed_flip = ("l", "r", "f", "b")
+                    if not isinstance(direction, str) or direction not in allowed_flip:
+                        raise ValueError(
+                            "direction must be one of: l, r, f, b"
+                        )
+                    response_output = await drone.send_command(f"flip {direction}")
                 else:
                     # MCP Server should raise error for unknown tool
                     logger.error(f"Unknown tool requested in call_tool: {name}")
