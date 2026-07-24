@@ -104,6 +104,33 @@ class Tello:
             logger.error(f"Error in send_command wrapper for {command}: {e}")
             return f"error wrapper: {e}"
 
+    def receive_state(self, timeout: float = 2.0) -> str:
+        """Receive one Tello state datagram from TELLO_STATE_PORT (8890).
+
+        Uses a short-lived UDP socket so the command socket is untouched.
+        Fail-closed: returns an error-prefixed string on timeout/IO/decode issues.
+        """
+        state_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            state_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            state_sock.bind((self.local_ip, TELLO_STATE_PORT))
+            state_sock.settimeout(timeout)
+            data, addr = state_sock.recvfrom(4096)
+            logger.debug(f"State packet {len(data)} bytes from {addr}")
+            try:
+                return data.decode("utf-8").strip()
+            except UnicodeDecodeError as e:
+                logger.error(f"Failed to decode state packet: {data!r} - {e}")
+                return f"error decode: {e}"
+        except socket.timeout:
+            logger.warning("Timeout waiting for Tello state packet")
+            return "error timeout"
+        except OSError as e:
+            logger.error(f"Network error receiving Tello state: {e}")
+            return f"error socket: {e}"
+        finally:
+            state_sock.close()
+
     def close(self):
         logger.info("Closing Tello connection.")
         self.sock.close()
@@ -164,6 +191,11 @@ class MCPTelloServer:
                         },
                         "required": ["direction", "degrees"]
                     }
+                ),
+                Tool(
+                    name="get_state",
+                    description="Reads one Tello state telemetry datagram (UDP 8890)",
+                    inputSchema={"type": "object", "properties": {}}
                 )
             ]
             logger.info(f"Returning {len(tools)} tools.")
@@ -211,6 +243,9 @@ class MCPTelloServer:
                     if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
                          raise ValueError("Degrees must be an integer between 1 and 3600")
                     response_output = await drone.send_command(f"{direction} {degrees}")
+                elif name == "get_state":
+                    # State port is blocking UDP; keep event loop free via thread
+                    response_output = await asyncio.to_thread(drone.receive_state)
                 else:
                     # MCP Server should raise error for unknown tool
                     logger.error(f"Unknown tool requested in call_tool: {name}")
