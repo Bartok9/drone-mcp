@@ -164,6 +164,16 @@ class MCPTelloServer:
                         },
                         "required": ["direction", "degrees"]
                     }
+                ),
+                Tool(
+                    name="motoron",
+                    description="Starts Tello motors at low speed on the ground (SDK motoron; not takeoff)",
+                    inputSchema={"type": "object", "properties": {}}
+                ),
+                Tool(
+                    name="motoroff",
+                    description="Stops Tello motors started with motoron (SDK motoroff)",
+                    inputSchema={"type": "object", "properties": {}}
                 )
             ]
             logger.info(f"Returning {len(tools)} tools.")
@@ -211,6 +221,10 @@ class MCPTelloServer:
                     if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
                          raise ValueError("Degrees must be an integer between 1 and 3600")
                     response_output = await drone.send_command(f"{direction} {degrees}")
+                elif name == "motoron":
+                    response_output = await drone.send_command("motoron")
+                elif name == "motoroff":
+                    response_output = await drone.send_command("motoroff")
                 else:
                     # MCP Server should raise error for unknown tool
                     logger.error(f"Unknown tool requested in call_tool: {name}")
