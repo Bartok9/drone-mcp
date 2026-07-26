@@ -164,6 +164,17 @@ class MCPTelloServer:
                         },
                         "required": ["direction", "degrees"]
                     }
+                ),
+                Tool(
+                    name="mdirection",
+                    description="Sets Tello Mission Pad detection direction (0=down, 1=forward, 2=both)",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "direction": {"type": "integer", "enum": [0, 1, 2]}
+                        },
+                        "required": ["direction"]
+                    }
                 )
             ]
             logger.info(f"Returning {len(tools)} tools.")
@@ -211,6 +222,14 @@ class MCPTelloServer:
                     if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
                          raise ValueError("Degrees must be an integer between 1 and 3600")
                     response_output = await drone.send_command(f"{direction} {degrees}")
+                elif name == "mdirection":
+                    direction = arguments.get("direction")
+                    if direction is None:
+                        raise ValueError("Missing direction for mdirection")
+                    # Reject bool (True/False subclass int) and out-of-set values
+                    if type(direction) is not int or direction not in (0, 1, 2):
+                        raise ValueError("direction must be integer 0, 1, or 2")
+                    response_output = await drone.send_command(f"mdirection {direction}")
                 else:
                     # MCP Server should raise error for unknown tool
                     logger.error(f"Unknown tool requested in call_tool: {name}")
