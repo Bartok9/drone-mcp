@@ -164,6 +164,20 @@ class MCPTelloServer:
                         },
                         "required": ["direction", "degrees"]
                     }
+                ),
+                Tool(
+                    name="go",
+                    description="Fly Tello to x,y,z (cm) at speed (cm/s) relative to current position",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "x": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "y": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "z": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "speed": {"type": "integer", "minimum": 10, "maximum": 100}
+                        },
+                        "required": ["x", "y", "z", "speed"]
+                    }
                 )
             ]
             logger.info(f"Returning {len(tools)} tools.")
@@ -211,6 +225,27 @@ class MCPTelloServer:
                     if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
                          raise ValueError("Degrees must be an integer between 1 and 3600")
                     response_output = await drone.send_command(f"{direction} {degrees}")
+                elif name == "go":
+                    x = arguments.get("x")
+                    y = arguments.get("y")
+                    z = arguments.get("z")
+                    speed = arguments.get("speed")
+                    if x is None or y is None or z is None or speed is None:
+                        raise ValueError("Missing x, y, z, or speed for go")
+                    # Reject bool (subclass of int) and non-int values
+                    for name_arg, val, lo, hi in (
+                        ("x", x, -500, 500),
+                        ("y", y, -500, 500),
+                        ("z", z, -500, 500),
+                        ("speed", speed, 10, 100),
+                    ):
+                        if type(val) is not int or not (lo <= val <= hi):
+                            raise ValueError(
+                                f"{name_arg} must be an integer between {lo} and {hi}"
+                            )
+                    if x == 0 and y == 0 and z == 0:
+                        raise ValueError("x, y, and z cannot all be zero for go")
+                    response_output = await drone.send_command(f"go {x} {y} {z} {speed}")
                 else:
                     # MCP Server should raise error for unknown tool
                     logger.error(f"Unknown tool requested in call_tool: {name}")
