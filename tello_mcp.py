@@ -164,6 +164,23 @@ class MCPTelloServer:
                         },
                         "required": ["direction", "degrees"]
                     }
+                ),
+                Tool(
+                    name="curve",
+                    description="Fly Tello along a curve via two waypoints (cm) at speed (cm/s)",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "x1": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "y1": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "z1": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "x2": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "y2": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "z2": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "speed": {"type": "integer", "minimum": 10, "maximum": 60}
+                        },
+                        "required": ["x1", "y1", "z1", "x2", "y2", "z2", "speed"]
+                    }
                 )
             ]
             logger.info(f"Returning {len(tools)} tools.")
@@ -211,6 +228,32 @@ class MCPTelloServer:
                     if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
                          raise ValueError("Degrees must be an integer between 1 and 3600")
                     response_output = await drone.send_command(f"{direction} {degrees}")
+                elif name == "curve":
+                    x1 = arguments.get("x1")
+                    y1 = arguments.get("y1")
+                    z1 = arguments.get("z1")
+                    x2 = arguments.get("x2")
+                    y2 = arguments.get("y2")
+                    z2 = arguments.get("z2")
+                    speed = arguments.get("speed")
+                    if any(v is None for v in (x1, y1, z1, x2, y2, z2, speed)):
+                        raise ValueError("Missing x1,y1,z1,x2,y2,z2, or speed for curve")
+                    for name_arg, val, lo, hi in (
+                        ("x1", x1, -500, 500),
+                        ("y1", y1, -500, 500),
+                        ("z1", z1, -500, 500),
+                        ("x2", x2, -500, 500),
+                        ("y2", y2, -500, 500),
+                        ("z2", z2, -500, 500),
+                        ("speed", speed, 10, 60),
+                    ):
+                        if type(val) is not int or not (lo <= val <= hi):
+                            raise ValueError(
+                                f"{name_arg} must be an integer between {lo} and {hi}"
+                            )
+                    response_output = await drone.send_command(
+                        f"curve {x1} {y1} {z1} {x2} {y2} {z2} {speed}"
+                    )
                 else:
                     # MCP Server should raise error for unknown tool
                     logger.error(f"Unknown tool requested in call_tool: {name}")
