@@ -165,6 +165,24 @@ class MCPTelloServer:
                         "required": ["direction", "degrees"]
                     }
                 )
+,
+                Tool(
+                    name="jump",
+                    description="Fly Tello between Mission Pads (jump x y z speed yaw mid1 mid2)",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "x": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "y": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "z": {"type": "integer", "minimum": -500, "maximum": 500},
+                            "speed": {"type": "integer", "minimum": 10, "maximum": 100},
+                            "yaw": {"type": "integer", "minimum": 0, "maximum": 360},
+                            "mid1": {"type": "integer", "minimum": 1, "maximum": 8},
+                            "mid2": {"type": "integer", "minimum": 1, "maximum": 8}
+                        },
+                        "required": ["x", "y", "z", "speed", "yaw", "mid1", "mid2"]
+                    }
+                ),
             ]
             logger.info(f"Returning {len(tools)} tools.")
             return tools
@@ -211,6 +229,32 @@ class MCPTelloServer:
                     if not isinstance(degrees, int) or not (1 <= degrees <= 3600):
                          raise ValueError("Degrees must be an integer between 1 and 3600")
                     response_output = await drone.send_command(f"{direction} {degrees}")
+                elif name == "jump":
+                    x = arguments.get("x")
+                    y = arguments.get("y")
+                    z = arguments.get("z")
+                    speed = arguments.get("speed")
+                    yaw = arguments.get("yaw")
+                    mid1 = arguments.get("mid1")
+                    mid2 = arguments.get("mid2")
+                    if any(v is None for v in (x, y, z, speed, yaw, mid1, mid2)):
+                        raise ValueError("Missing x, y, z, speed, yaw, mid1, or mid2 for jump")
+                    for name_arg, val, lo, hi in (
+                        ("x", x, -500, 500),
+                        ("y", y, -500, 500),
+                        ("z", z, -500, 500),
+                        ("speed", speed, 10, 100),
+                        ("yaw", yaw, 0, 360),
+                        ("mid1", mid1, 1, 8),
+                        ("mid2", mid2, 1, 8),
+                    ):
+                        if type(val) is not int or not (lo <= val <= hi):
+                            raise ValueError(
+                                f"{name_arg} must be an integer between {lo} and {hi}"
+                            )
+                    response_output = await drone.send_command(
+                        f"jump {x} {y} {z} {speed} {yaw} {mid1} {mid2}"
+                    )
                 else:
                     # MCP Server should raise error for unknown tool
                     logger.error(f"Unknown tool requested in call_tool: {name}")
